@@ -274,7 +274,7 @@ while True:
                                         else:
                                             event_data = event_text
                                         year_events = all_events.setdefault(year_str, {})
-import locale
+import locale:
 
 try:
     locale.setlocale(locale.LC_ALL, '')  # Empty string for default system locale
