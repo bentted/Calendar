@@ -282,6 +282,8 @@ while True:
 
 
 
+import locale
+
 try:
     locale.setlocale(locale.LC_ALL, '')  # Empty string for default system locale
 except locale.Error:
@@ -291,5 +293,6 @@ except locale.Error:
         print("Could not reset to default locale.")
 finally:
     print("Locale reset attempt completed.")
+
 
 
