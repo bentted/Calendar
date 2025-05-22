@@ -25,18 +25,15 @@ def load_all_events():
     except (json.JSONDecodeError, FileNotFoundError):
         return {}
 
+
 # Function to save all events
 def save_all_events(data):
     try:
         with open(EVENTS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-   try:
-       with
-    # Your code that may raise an IOError
-       open(EVENTS_FILE, 'w') as file:
-        file.write("Some event data")  # Replace with actual data to save
-except IOError:
-    print(f"Error: Could not save events to {EVENTS_FILE}")
+            # Assuming you have some data to write
+            f.write(data)  # Replace this with your actual data handling
+    except IOError:
+        print(f"Error: Could not save events to {EVENTS_FILE}")
 
 
 
