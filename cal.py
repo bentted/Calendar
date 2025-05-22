@@ -274,6 +274,17 @@ while True:
                                         else:
                                             event_data = event_text
                                         year_events = all_events.setdefault(year_str, {})
+import locale
+
+try:
+    locale.setlocale(locale.LC_ALL, '')  # Empty string for default system locale
+except locale.Error:
+    try:
+        locale.setlocale(locale.LC_ALL, 'C')  # Fallback to C locale
+    except locale.Error:
+        print("Could not reset to default locale.")
+finally:
+    print("Locale reset attempt completed.")
                                         month_events = year_events.setdefault(month_key_str, {})
                                         day_events = month_events.setdefault(day_str, {})
                                         day_events[hour_str] = event_data
@@ -286,17 +297,6 @@ while True:
 
 
 
-import locale
-
-try:
-    locale.setlocale(locale.LC_ALL, '')  # Empty string for default system locale
-except locale.Error:
-    try:
-        locale.setlocale(locale.LC_ALL, 'C')  # Fallback to C locale
-    except locale.Error:
-        print("Could not reset to default locale.")
-finally:
-    print("Locale reset attempt completed.")
 
 
 
