@@ -281,5 +281,17 @@ while True:
                             print("Invalid action. Please type 'add', 'edit', 'view', 'delete', or 'done'.")
 
 
+# Reset to default locale (optional, but good practice)
+try:
+    locale.setlocale(locale.LC_ALL, '')  # Empty string for default system locale
+except locale.Error:
+    try:
+        locale.setlocale(locale.LC_ALL, 'C')  # Fallback to C locale
+    
+except locale.Error:
+        print("Could not reset to default locale.")
+finally:
+    print("Locale reset attempt completed.")
+
 
 
