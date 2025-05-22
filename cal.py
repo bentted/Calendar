@@ -31,8 +31,9 @@ def save_all_events(data):
         with open(EVENTS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
    try:
+       with
     # Your code that may raise an IOError
-    with open(EVENTS_FILE, 'w') as file:
+       open(EVENTS_FILE, 'w') as file:
         file.write("Some event data")  # Replace with actual data to save
 except IOError:
     print(f"Error: Could not save events to {EVENTS_FILE}")
