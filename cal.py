@@ -281,7 +281,6 @@ while True:
                             print("Invalid action. Please type 'add', 'edit', 'view', 'delete', or 'done'.")
 
 
-import locale
 
 try:
     locale.setlocale(locale.LC_ALL, '')  # Empty string for default system locale
