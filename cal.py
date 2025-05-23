@@ -3,7 +3,6 @@ import locale
 import json
 import os
 from datetime import datetime, timedelta
-import time
 
 # Default to current month and year
 now = datetime.now()
@@ -115,7 +114,7 @@ notify_upcoming_events(all_events)
 # Allow user to select month and year
 select_month_and_year()
 
-print(f"Calendar for {calendar.month_name[mm]} {yy}\\n")
+print(f"Calendar for {calendar.month_name[mm]} {yy}\n")
 
 # Create a list of languages for the menu
 language_options = list(windows_locales.keys())
@@ -133,13 +132,23 @@ while True:
             loc_name = windows_locales[selected_lang_name]
             generic_loc_name = locales_to_try.get(selected_lang_name)
             
-            print(f"\\nDisplaying calendar for {selected_lang_name}:\\n")
+            print(f"\nDisplaying calendar for {selected_lang_name}:\n")
             calendar_displayed_successfully = False
             try:
                 locale.setlocale(locale.LC_ALL, loc_name)
                 print(f"--- {selected_lang_name} ({loc_name}) ---")
                 print(calendar.month(yy, mm))
                 calendar_displayed_successfully = True
+            except locale.Error as e:
+                print(f"Locale {loc_name} is not supported on this system: {e}")
+                print("Falling back to default locale.")
+                try:
+                    locale.setlocale(locale.LC_ALL, '')  # Default system locale
+                    print(calendar.month(yy, mm))
+                    calendar_displayed_successfully = True
+                
+                except locale.Error as fallback_error:
+                    print(f"Failed to set default locale: {fallback_error}")
             except locale.Error as e:
                 print(f"Could not set Windows-specific locale for {selected_lang_name} ({loc_name}): {e}")
                 if generic_loc_name and generic_loc_name != loc_name:
@@ -171,7 +180,7 @@ while True:
                         if not month_events_data:
                             print(f"No events scheduled for {calendar.month_name[mm]} {year_str}.")
                         else:
-                            print(f"\\nEvents for {calendar.month_name[mm]} {year_str}:")
+                            print(f"\nEvents for {calendar.month_name[mm]} {year_str}:")
                             for day_key in sorted(month_events_data.keys(), key=int):
                                 day_data = month_events_data[day_key]
                                 print(f"  Day {day_key}:")
@@ -279,7 +288,11 @@ while True:
                                         print("No changes made to the event.")
                         else:
                             print("Invalid action. Please type 'add', 'edit', 'view', 'delete', or 'done'.")
-
+    except KeyboardInterrupt:
+        print("\nExiting calendar program.")
+        break
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 # Reset to default locale (optional, but good practice)
 try:
     locale.setlocale(locale.LC_ALL, '')  # Empty string for default system locale
