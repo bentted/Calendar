@@ -103,6 +103,30 @@ def select_month_and_year():
         except ValueError:
             print("Invalid input. Please enter valid numbers for year and month.")
 
+# Function to handle file uploads
+def upload_file_for_event(year, month, day, hour):
+    file_path = input("Enter the path of the file to upload: ").strip()
+    if not os.path.exists(file_path):
+        print("Error: File does not exist.")
+        return None
+
+    file_name = os.path.basename(file_path)
+    try:
+        # Ensure the uploads directory exists
+        uploads_dir = "uploads"
+        os.makedirs(uploads_dir, exist_ok=True)
+
+        # Copy the file to the uploads directory
+        destination_path = os.path.join(uploads_dir, file_name)
+        with open(file_path, 'rb') as src, open(destination_path, 'wb') as dest:
+            dest.write(src.read())
+
+        print(f"File '{file_name}' uploaded successfully.")
+        return {"file_name": file_name, "file_path": destination_path}
+    except IOError as e:
+        print(f"Error uploading file: {e}")
+        return None
+
 # Load events and handle recurring events
 all_events = load_all_events()
 all_events = handle_recurring_events(all_events)
@@ -170,7 +194,7 @@ while True:
                 month_key_str = str(mm)
 
                 while True: 
-                    action = input(f"For {calendar.month_name[mm]} {year_str}, manage events or type 'done'? (add/edit/view/delete/done): ").lower()
+                    action = input(f"For {calendar.month_name[mm]} {year_str}, manage events or type 'done'? (add/edit/view/delete/upload/done): ").lower()
                     
                     if action == 'done':
                         break
@@ -190,7 +214,7 @@ while True:
                             print("") 
                         continue
 
-                    if action in ['add', 'edit', 'delete']:
+                    if action in ['add', 'edit', 'delete', 'upload']:
                         max_day = calendar.monthrange(yy, mm)[1]
                         while True:
                             try:
@@ -286,8 +310,21 @@ while True:
                                         save_all_events(all_events)
                                     else:
                                         print("No changes made to the event.")
+                        elif action == 'upload':
+                            if current_event == "No event scheduled.":
+                                print("No event scheduled at this time. Please add an event first.")
+                            else:
+                                file_metadata = upload_file_for_event(year_str, month_key_str, day_str, hour_str)
+                                if file_metadata:
+                                    if isinstance(current_event, dict):
+                                        current_event["file"] = file_metadata
+                                    else:
+                                        current_event = {"text": current_event, "file": file_metadata}
+                                    all_events.setdefault(year_str, {}).setdefault(month_key_str, {}).setdefault(day_str, {})[hour_str] = current_event
+                                    print("File metadata added to the event.")
+                                    save_all_events(all_events)
                         else:
-                            print("Invalid action. Please type 'add', 'edit', 'view', 'delete', or 'done'.")
+                            print("Invalid action. Please type 'add', 'edit', 'view', 'delete', 'upload', or 'done'.")
     except KeyboardInterrupt:
         print("\nExiting calendar program.")
         break
