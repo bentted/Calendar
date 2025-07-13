@@ -3,6 +3,8 @@ import locale
 import json
 import os
 from datetime import datetime, timedelta
+import threading
+import time
 
 # Default to current month and year
 now = datetime.now()
@@ -87,6 +89,31 @@ def notify_upcoming_events(events):
                     if today <= event_time <= today + timedelta(minutes=30):
                         print(f"Upcoming Event: {event} at {event_time.strftime('%Y-%m-%d %H:%M')}")
 
+# Function to send push notifications
+def send_push_notification(event, event_time):
+    print(f"Notification: Upcoming Event '{event}' at {event_time.strftime('%Y-%m-%d %H:%M')}")
+
+# Function to schedule notifications
+def schedule_notifications(events):
+    def notification_worker():
+        while True:
+            now = datetime.now()
+            for year, months in events.items():
+                for month, days in months.items():
+                    for day, hours in days.items():
+                        for hour, event in hours.items():
+                            event_time = datetime(int(year), int(month), int(day), int(hour))
+                            if now < event_time <= now + timedelta(minutes=30):
+                                if isinstance(event, dict):
+                                    event_text = event.get("text", "No event text")
+                                else:
+                                    event_text = event
+                                send_push_notification(event_text, event_time)
+            time.sleep(60)  # Check every minute
+
+    notification_thread = threading.Thread(target=notification_worker, daemon=True)
+    notification_thread.start()
+
 # Function to select month and year
 def select_month_and_year():
     global yy, mm
@@ -131,6 +158,9 @@ def upload_file_for_event(year, month, day, hour):
 all_events = load_all_events()
 all_events = handle_recurring_events(all_events)
 save_all_events(all_events)
+
+# Start push notifications
+schedule_notifications(all_events)
 
 # Notify about upcoming events
 notify_upcoming_events(all_events)
