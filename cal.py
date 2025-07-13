@@ -13,6 +13,9 @@ mm = now.month
 
 EVENTS_FILE = "calendar_events.json"
 
+# Global variable for notification interval (in seconds)
+NOTIFICATION_INTERVAL = 60  # Default to 60 seconds
+
 # Function to load all events
 def load_all_events():
     if not os.path.exists(EVENTS_FILE):
@@ -93,6 +96,42 @@ def notify_upcoming_events(events):
 def send_push_notification(event, event_time):
     print(f"Notification: Upcoming Event '{event}' at {event_time.strftime('%Y-%m-%d %H:%M')}")
 
+# Function to edit notification duration with flexible intervals
+def edit_notification_duration():
+    global NOTIFICATION_INTERVAL
+    while True:
+        try:
+            print("\nSelect the unit for notification interval:")
+            print("1. Months")
+            print("2. Days")
+            print("3. Hours")
+            print("4. Seconds")
+            unit_choice = input("Enter your choice (1-4): ").strip()
+
+            if unit_choice == '1':
+                months = int(input("Enter the number of months: "))
+                NOTIFICATION_INTERVAL = months * 30 * 24 * 60 * 60  # Approximate to 30 days per month
+            elif unit_choice == '2':
+                days = int(input("Enter the number of days: "))
+                NOTIFICATION_INTERVAL = days * 24 * 60 * 60
+            elif unit_choice == '3':
+                hours = int(input("Enter the number of hours: "))
+                NOTIFICATION_INTERVAL = hours * 60 * 60
+            elif unit_choice == '4':
+                seconds = int(input("Enter the number of seconds (minimum 10 seconds): "))
+                if seconds < 10:
+                    print("Interval must be at least 10 seconds.")
+                    continue
+                NOTIFICATION_INTERVAL = seconds
+            else:
+                print("Invalid choice. Please select a valid option.")
+                continue
+
+            print(f"Notification interval updated to {NOTIFICATION_INTERVAL} seconds.")
+            break
+        except ValueError:
+            print("Invalid input. Please enter a valid number.")
+
 # Function to schedule notifications
 def schedule_notifications(events):
     def notification_worker():
@@ -109,7 +148,7 @@ def schedule_notifications(events):
                                 else:
                                     event_text = event
                                 send_push_notification(event_text, event_time)
-            time.sleep(60)  # Check every minute
+            time.sleep(NOTIFICATION_INTERVAL)  # Use the updated interval
 
     notification_thread = threading.Thread(target=notification_worker, daemon=True)
     notification_thread.start()
