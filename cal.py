@@ -6,6 +6,15 @@ from datetime import datetime, timedelta
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 import shutil
+import threading
+import time
+try:
+    from Plyer import notification
+    PLYER_AVAILABLE = True
+except ImportError:
+    PLYER_AVAILABLE = False
+    print("Plyer not available. Desktop notifications will be disabled.")
+    print("Install with: pip install plyer")
 
 EVENTS_FILE = "calendar_events.json"
 
@@ -61,9 +70,22 @@ class CalendarGUI:
             }
         }
         
+        # Notification system
+        self.notification_settings = {
+            "enabled": True,
+            "desktop_notifications": PLYER_AVAILABLE,
+            "advance_notice": [5, 15, 30],  # minutes before event
+            "sound_enabled": True,
+            "popup_enabled": True
+        }
+        self.notification_thread = None
+        self.notification_running = False
+        self.active_notifications = []  # Track shown notifications to avoid duplicates
+        
         self.setup_ui()
         self.apply_theme()
         self.display_calendar()
+        self.start_notification_system()
     
     def setup_ui(self):
         """Setup the user interface"""
@@ -990,6 +1012,16 @@ class CalendarGUI:
         tk.Button(file_frame, text="View Uploaded Files", command=self.view_uploaded_files).pack(fill=tk.X, pady=2)
         tk.Button(file_frame, text="Clean Up Files", command=self.cleanup_files).pack(fill=tk.X, pady=2)
         
+        # Notification settings
+        notif_frame = tk.LabelFrame(settings_window, text="Notification Settings", padx=10, pady=10)
+        notif_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        tk.Button(notif_frame, text="Configure Notifications", command=self.show_notification_settings).pack(fill=tk.X, pady=2)
+        
+        # Status label
+        status_text = "Enabled" if self.notification_settings["enabled"] else "Disabled"
+        tk.Label(notif_frame, text=f"Status: {status_text}", font=("Arial", 9), fg="gray").pack(pady=2)
+        
         # Apply settings button
         tk.Button(settings_window, text="Apply Language Settings", command=lambda: self.apply_language_settings(settings_window)).pack(pady=10)
         
@@ -1290,6 +1322,303 @@ class CalendarGUI:
         
         self.display_calendar()
         settings_window.destroy()
+    
+    def start_notification_system(self):
+        """Start the notification monitoring system"""
+        if not self.notification_settings["enabled"]:
+            return
+        
+        self.notification_running = True
+        self.notification_thread = threading.Thread(target=self.notification_monitor, daemon=True)
+        self.notification_thread.start()
+        print("Notification system started")
+    
+    def stop_notification_system(self):
+        """Stop the notification monitoring system"""
+        self.notification_running = False
+        if self.notification_thread:
+            self.notification_thread.join(timeout=1)
+        print("Notification system stopped")
+    
+    def notification_monitor(self):
+        """Background thread to monitor for upcoming events"""
+        while self.notification_running:
+            try:
+                self.check_upcoming_events()
+                time.sleep(60)  # Check every minute
+            except Exception as e:
+                print(f"Notification error: {e}")
+                time.sleep(60)
+    
+    def check_upcoming_events(self):
+        """Check for upcoming events and send notifications"""
+        if not self.notification_settings["enabled"]:
+            return
+        
+        current_time = datetime.now()
+        
+        # Clear old notifications (older than 1 hour)
+        self.active_notifications = [
+            notif for notif in self.active_notifications 
+            if (current_time - notif["time"]).total_seconds() < 3600
+        ]
+        
+        # Check events for notification
+        for year, months in self.events.items():
+            for month, days in months.items():
+                for day, hours in days.items():
+                    for hour, event in hours.items():
+                        try:
+                            event_time = datetime(int(year), int(month), int(day), int(hour))
+                            
+                            # Check each advance notice period
+                            for advance_minutes in self.notification_settings["advance_notice"]:
+                                notification_time = event_time - timedelta(minutes=advance_minutes)
+                                
+                                # Check if we should notify now (within 1 minute window)
+                                time_diff = abs((current_time - notification_time).total_seconds())
+                                
+                                if time_diff <= 60:  # Within 1 minute of notification time
+                                    # Create unique notification ID
+                                    notification_id = f"{year}-{month}-{day}-{hour}-{advance_minutes}"
+                                    
+                                    # Check if we already sent this notification
+                                    if not any(notif["id"] == notification_id for notif in self.active_notifications):
+                                        self.send_event_notification(event, event_time, advance_minutes)
+                                        
+                                        # Track this notification
+                                        self.active_notifications.append({
+                                            "id": notification_id,
+                                            "time": current_time,
+                                            "event_time": event_time,
+                                            "advance_minutes": advance_minutes
+                                        })
+                        
+                        except (ValueError, TypeError) as e:
+                            print(f"Error processing event time: {e}")
+                            continue
+    
+    def send_event_notification(self, event, event_time, advance_minutes):
+        """Send notification for an upcoming event"""
+        # Get event text
+        if isinstance(event, dict):
+            event_text = event.get('text', str(event))
+        else:
+            event_text = str(event)
+        
+        # Format notification message
+        if advance_minutes == 0:
+            title = "Event Starting Now!"
+            message = f"{event_text}"
+        else:
+            title = f"Event in {advance_minutes} minutes"
+            message = f"{event_text}\nScheduled for {event_time.strftime('%H:%M')}"
+        
+        # Send desktop notification if available and enabled
+        if (self.notification_settings["desktop_notifications"] and 
+            PLYER_AVAILABLE):
+            try:
+                notification.notify(
+                    title=title,
+                    message=message,
+                    timeout=10,
+                    app_name="Calendar"
+                )
+            except Exception as e:
+                print(f"Desktop notification error: {e}")
+        
+        # Send popup notification if enabled
+        if self.notification_settings["popup_enabled"]:
+            self.root.after(0, lambda: self.show_popup_notification(title, message, event_time))
+        
+        # Play sound if enabled (Windows system sound)
+        if self.notification_settings["sound_enabled"]:
+            try:
+                import winsound
+                winsound.MessageBeep(winsound.MB_ICONASTERISK)
+            except ImportError:
+                try:
+                    # Alternative for non-Windows systems
+                    print('\a')  # System bell
+                except:
+                    pass
+        
+        print(f"Notification sent: {title} - {message}")
+    
+    def show_popup_notification(self, title, message, event_time):
+        """Show in-app popup notification"""
+        # Create notification popup
+        popup = tk.Toplevel(self.root)
+        popup.title("Event Notification")
+        popup.geometry("300x150")
+        popup.attributes("-topmost", True)
+        
+        # Center the popup on screen
+        popup.update_idletasks()
+        x = (popup.winfo_screenwidth() // 2) - (popup.winfo_width() // 2)
+        y = (popup.winfo_screenheight() // 2) - (popup.winfo_height() // 2)
+        popup.geometry(f"+{x}+{y}")
+        
+        # Title label
+        title_label = tk.Label(popup, text=title, font=("Arial", 12, "bold"))
+        title_label.pack(pady=5)
+        
+        # Message label
+        message_label = tk.Label(popup, text=message, font=("Arial", 10), wraplength=280)
+        message_label.pack(pady=5, padx=10)
+        
+        # Time label
+        time_label = tk.Label(popup, text=f"Event Time: {event_time.strftime('%H:%M')}", 
+                            font=("Arial", 9), fg="gray")
+        time_label.pack(pady=2)
+        
+        # Buttons frame
+        button_frame = tk.Frame(popup)
+        button_frame.pack(pady=10)
+        
+        # Dismiss button
+        dismiss_btn = tk.Button(button_frame, text="Dismiss", command=popup.destroy)
+        dismiss_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Snooze button
+        snooze_btn = tk.Button(button_frame, text="Snooze (5 min)", 
+                             command=lambda: self.snooze_notification(popup, event_time))
+        snooze_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Apply theme to popup
+        self.apply_theme_to_window(popup)
+        
+        # Auto-close after 30 seconds
+        popup.after(30000, popup.destroy)
+    
+    def snooze_notification(self, popup, event_time):
+        """Snooze notification for 5 minutes"""
+        popup.destroy()
+        
+        # Schedule another notification in 5 minutes
+        snooze_time = datetime.now() + timedelta(minutes=5)
+        
+        def delayed_notification():
+            time.sleep(300)  # 5 minutes
+            if self.notification_running:
+                self.root.after(0, lambda: messagebox.showinfo(
+                    "Snoozed Event Reminder",
+                    f"Event at {event_time.strftime('%H:%M')} - Snoozed reminder"
+                ))
+        
+        snooze_thread = threading.Thread(target=delayed_notification, daemon=True)
+        snooze_thread.start()
+    
+    def show_notification_settings(self):
+        """Show notification settings window"""
+        notif_window = tk.Toplevel(self.root)
+        notif_window.title("Notification Settings")
+        notif_window.geometry("400x500")
+        
+        # Main settings frame
+        main_frame = tk.Frame(notif_window)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Enable/Disable notifications
+        enable_frame = tk.LabelFrame(main_frame, text="General Settings", padx=10, pady=10)
+        enable_frame.pack(fill=tk.X, pady=5)
+        
+        self.notif_enabled_var = tk.BooleanVar(value=self.notification_settings["enabled"])
+        enable_check = tk.Checkbutton(enable_frame, text="Enable Notifications", 
+                                    variable=self.notif_enabled_var)
+        enable_check.pack(anchor=tk.W)
+        
+        self.desktop_notif_var = tk.BooleanVar(value=self.notification_settings["desktop_notifications"])
+        desktop_check = tk.Checkbutton(enable_frame, text="Desktop Notifications", 
+                                     variable=self.desktop_notif_var,
+                                     state=tk.NORMAL if PLYER_AVAILABLE else tk.DISABLED)
+        desktop_check.pack(anchor=tk.W)
+        
+        if not PLYER_AVAILABLE:
+            tk.Label(enable_frame, text="(Install 'plyer' package for desktop notifications)", 
+                   fg="gray", font=("Arial", 8)).pack(anchor=tk.W)
+        
+        self.popup_notif_var = tk.BooleanVar(value=self.notification_settings["popup_enabled"])
+        popup_check = tk.Checkbutton(enable_frame, text="Popup Notifications", 
+                                   variable=self.popup_notif_var)
+        popup_check.pack(anchor=tk.W)
+        
+        self.sound_notif_var = tk.BooleanVar(value=self.notification_settings["sound_enabled"])
+        sound_check = tk.Checkbutton(enable_frame, text="Sound Notifications", 
+                                   variable=self.sound_notif_var)
+        sound_check.pack(anchor=tk.W)
+        
+        # Advance notice settings
+        advance_frame = tk.LabelFrame(main_frame, text="Advance Notice (minutes)", padx=10, pady=10)
+        advance_frame.pack(fill=tk.X, pady=5)
+        
+        tk.Label(advance_frame, text="Get notified before events:").pack(anchor=tk.W)
+        
+        self.advance_vars = {}
+        for minutes in [5, 10, 15, 30, 60]:
+            var = tk.BooleanVar(value=minutes in self.notification_settings["advance_notice"])
+            self.advance_vars[minutes] = var
+            check = tk.Checkbutton(advance_frame, text=f"{minutes} minutes before", variable=var)
+            check.pack(anchor=tk.W)
+        
+        # Test notification button
+        test_frame = tk.Frame(main_frame)
+        test_frame.pack(fill=tk.X, pady=10)
+        
+        test_btn = tk.Button(test_frame, text="Test Notification", 
+                           command=self.test_notification)
+        test_btn.pack()
+        
+        # Save/Cancel buttons
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=10)
+        
+        save_btn = tk.Button(button_frame, text="Save Settings", 
+                           command=lambda: self.save_notification_settings(notif_window))
+        save_btn.pack(side=tk.LEFT, padx=5)
+        
+        cancel_btn = tk.Button(button_frame, text="Cancel", command=notif_window.destroy)
+        cancel_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Apply theme
+        self.apply_theme_to_window(notif_window)
+    
+    def test_notification(self):
+        """Send a test notification"""
+        test_time = datetime.now() + timedelta(minutes=1)
+        test_event = "Test Event - Notification System Working!"
+        
+        self.send_event_notification(test_event, test_time, 1)
+        messagebox.showinfo("Test", "Test notification sent!")
+    
+    def save_notification_settings(self, window):
+        """Save notification settings"""
+        # Update settings
+        self.notification_settings["enabled"] = self.notif_enabled_var.get()
+        self.notification_settings["desktop_notifications"] = self.desktop_notif_var.get() and PLYER_AVAILABLE
+        self.notification_settings["popup_enabled"] = self.popup_notif_var.get()
+        self.notification_settings["sound_enabled"] = self.sound_notif_var.get()
+        
+        # Update advance notice settings
+        self.notification_settings["advance_notice"] = [
+            minutes for minutes, var in self.advance_vars.items() if var.get()
+        ]
+        
+        # Restart notification system if settings changed
+        if self.notification_settings["enabled"]:
+            if not self.notification_running:
+                self.start_notification_system()
+        else:
+            if self.notification_running:
+                self.stop_notification_system()
+        
+        window.destroy()
+        messagebox.showinfo("Settings Saved", "Notification settings have been updated!")
+    
+    def __del__(self):
+        """Clean up when the application is closed"""
+        if hasattr(self, 'notification_running'):
+            self.stop_notification_system()
 
 def run_gui_calendar():
     """Start the GUI version of the calendar"""
