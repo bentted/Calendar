@@ -3,6 +3,7 @@ import locale
 import json
 import os
 from datetime import datetime, timedelta
+<<<<<<< HEAD
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 import shutil
@@ -773,6 +774,20 @@ def run_gui_calendar():
     root = tk.Tk()
     app = CalendarGUI(root)
     root.mainloop()
+=======
+import threading
+import time
+
+# Default to current month and year
+now = datetime.now()
+yy = now.year
+mm = now.month
+
+EVENTS_FILE = "calendar_events.json"
+
+# Global variable for notification interval (in seconds)
+NOTIFICATION_INTERVAL = 60  # Default to 60 seconds
+>>>>>>> f9816061d1d9ed70667fb672a1fe73f7fe51c04f
 
 # Function to load all events
 def load_all_events():
@@ -822,6 +837,7 @@ def handle_recurring_events(events):
                 del events[year]
     return events
 
+<<<<<<< HEAD
 if __name__ == "__main__":
     try:
         print("Starting Calendar Application...")
@@ -866,6 +882,324 @@ if __name__ == "__main__":
         print("GUI initialized successfully!")
         root.mainloop()
         
+=======
+# Function to notify upcoming events
+def notify_upcoming_events(events):
+    today = datetime.now()
+    for year, months in events.items():
+        for month, days in months.items():
+            for day, hours in days.items():
+                for hour, event in hours.items():
+                    event_time = datetime(int(year), int(month), int(day), int(hour))
+                    if today <= event_time <= today + timedelta(minutes=30):
+                        print(f"Upcoming Event: {event} at {event_time.strftime('%Y-%m-%d %H:%M')}")
+
+# Function to send push notifications
+def send_push_notification(event, event_time):
+    print(f"Notification: Upcoming Event '{event}' at {event_time.strftime('%Y-%m-%d %H:%M')}")
+
+# Function to edit notification duration with flexible intervals
+def edit_notification_duration():
+    global NOTIFICATION_INTERVAL
+    while True:
+        try:
+            print("\nSelect the unit for notification interval:")
+            print("1. Months")
+            print("2. Days")
+            print("3. Hours")
+            print("4. Seconds")
+            unit_choice = input("Enter your choice (1-4): ").strip()
+
+            if unit_choice == '1':
+                months = int(input("Enter the number of months: "))
+                NOTIFICATION_INTERVAL = months * 30 * 24 * 60 * 60  # Approximate to 30 days per month
+            elif unit_choice == '2':
+                days = int(input("Enter the number of days: "))
+                NOTIFICATION_INTERVAL = days * 24 * 60 * 60
+            elif unit_choice == '3':
+                hours = int(input("Enter the number of hours: "))
+                NOTIFICATION_INTERVAL = hours * 60 * 60
+            elif unit_choice == '4':
+                seconds = int(input("Enter the number of seconds (minimum 10 seconds): "))
+                if seconds < 10:
+                    print("Interval must be at least 10 seconds.")
+                    continue
+                NOTIFICATION_INTERVAL = seconds
+            else:
+                print("Invalid choice. Please select a valid option.")
+                continue
+
+            print(f"Notification interval updated to {NOTIFICATION_INTERVAL} seconds.")
+            break
+        except ValueError:
+            print("Invalid input. Please enter a valid number.")
+
+# Function to schedule notifications
+def schedule_notifications(events):
+    def notification_worker():
+        while True:
+            now = datetime.now()
+            for year, months in events.items():
+                for month, days in months.items():
+                    for day, hours in days.items():
+                        for hour, event in hours.items():
+                            event_time = datetime(int(year), int(month), int(day), int(hour))
+                            if now < event_time <= now + timedelta(minutes=30):
+                                if isinstance(event, dict):
+                                    event_text = event.get("text", "No event text")
+                                else:
+                                    event_text = event
+                                send_push_notification(event_text, event_time)
+            time.sleep(NOTIFICATION_INTERVAL)  # Use the updated interval
+
+    notification_thread = threading.Thread(target=notification_worker, daemon=True)
+    notification_thread.start()
+
+# Function to select month and year
+def select_month_and_year():
+    global yy, mm
+    while True:
+        try:
+            year_input = input("Enter year (or press Enter for current year): ")
+            month_input = input("Enter month (1-12, or press Enter for current month): ")
+            yy = int(year_input) if year_input else now.year
+            mm = int(month_input) if month_input else now.month
+            if 1 <= mm <= 12:
+                break
+            else:
+                print("Invalid month. Please enter a number between 1 and 12.")
+        except ValueError:
+            print("Invalid input. Please enter valid numbers for year and month.")
+
+# Function to handle file uploads
+def upload_file_for_event(year, month, day, hour):
+    file_path = input("Enter the path of the file to upload: ").strip()
+    if not os.path.exists(file_path):
+        print("Error: File does not exist.")
+        return None
+
+    file_name = os.path.basename(file_path)
+    try:
+        # Ensure the uploads directory exists
+        uploads_dir = "uploads"
+        os.makedirs(uploads_dir, exist_ok=True)
+
+        # Copy the file to the uploads directory
+        destination_path = os.path.join(uploads_dir, file_name)
+        with open(file_path, 'rb') as src, open(destination_path, 'wb') as dest:
+            dest.write(src.read())
+
+        print(f"File '{file_name}' uploaded successfully.")
+        return {"file_name": file_name, "file_path": destination_path}
+    except IOError as e:
+        print(f"Error uploading file: {e}")
+        return None
+
+# Load events and handle recurring events
+all_events = load_all_events()
+all_events = handle_recurring_events(all_events)
+save_all_events(all_events)
+
+# Start push notifications
+schedule_notifications(all_events)
+
+# Notify about upcoming events
+notify_upcoming_events(all_events)
+
+# Allow user to select month and year
+select_month_and_year()
+
+print(f"Calendar for {calendar.month_name[mm]} {yy}\n")
+
+# Create a list of languages for the menu
+language_options = list(windows_locales.keys())
+
+print("Please select a language for the calendar:")
+for i, lang_name in enumerate(language_options):
+    print(f"{i + 1}. {lang_name}")
+
+while True:
+    try:
+        choice = input(f"Enter a number (1-{len(language_options)}): ")
+        choice_index = int(choice) - 1
+        if 0 <= choice_index < len(language_options):
+            selected_lang_name = language_options[choice_index]
+            loc_name = windows_locales[selected_lang_name]
+            generic_loc_name = locales_to_try.get(selected_lang_name)
+            
+            print(f"\nDisplaying calendar for {selected_lang_name}:\n")
+            calendar_displayed_successfully = False
+            try:
+                locale.setlocale(locale.LC_ALL, loc_name)
+                print(f"--- {selected_lang_name} ({loc_name}) ---")
+                print(calendar.month(yy, mm))
+                calendar_displayed_successfully = True
+            except locale.Error as e:
+                print(f"Locale {loc_name} is not supported on this system: {e}")
+                print("Falling back to default locale.")
+                try:
+                    locale.setlocale(locale.LC_ALL, '')  # Default system locale
+                    print(calendar.month(yy, mm))
+                    calendar_displayed_successfully = True
+                
+                except locale.Error as fallback_error:
+                    print(f"Failed to set default locale: {fallback_error}")
+            except locale.Error as e:
+                print(f"Could not set Windows-specific locale for {selected_lang_name} ({loc_name}): {e}")
+                if generic_loc_name and generic_loc_name != loc_name:
+                    print(f"Trying generic locale: {generic_loc_name}")
+                    try:
+                        locale.setlocale(locale.LC_ALL, generic_loc_name)
+                        print(f"--- {selected_lang_name} ({generic_loc_name}) ---")
+                        print(calendar.month(yy, mm))
+                        calendar_displayed_successfully = True
+                    except locale.Error as e_generic:
+                        print(f"Could not set generic locale for {selected_lang_name} ({generic_loc_name}) either: {e_generic}")
+                        print(f"Skipping {selected_lang_name} as locale setup failed.")
+                else:
+                    print(f"No generic fallback locale defined or it's the same. Skipping {selected_lang_name}.")
+            
+            if calendar_displayed_successfully:
+                all_events = load_all_events()
+                year_str = str(yy)
+                month_key_str = str(mm)
+
+                while True: 
+                    action = input(f"For {calendar.month_name[mm]} {year_str}, manage events or type 'done'? (add/edit/view/delete/upload/done): ").lower()
+                    
+                    if action == 'done':
+                        break
+                    
+                    if action == 'view':
+                        month_events_data = all_events.get(year_str, {}).get(month_key_str, {})
+                        if not month_events_data:
+                            print(f"No events scheduled for {calendar.month_name[mm]} {year_str}.")
+                        else:
+                            print(f"\nEvents for {calendar.month_name[mm]} {year_str}:")
+                            for day_key in sorted(month_events_data.keys(), key=int):
+                                day_data = month_events_data[day_key]
+                                print(f"  Day {day_key}:")
+                                for hour_key in sorted(day_data.keys(), key=int):
+                                    event_detail = day_data[hour_key]
+                                    print(f"    Hour {hour_key}:00 - {event_detail}")
+                            print("") 
+                        continue
+
+                    if action in ['add', 'edit', 'delete', 'upload']:
+                        max_day = calendar.monthrange(yy, mm)[1]
+                        while True:
+                            try:
+                                day_input = input(f"Enter the day of the month (1-{max_day}): ")
+                                day = int(day_input)
+                                if 1 <= day <= max_day:
+                                    break
+                                else:
+                                    print(f"Invalid day. Please enter a number between 1 and {max_day}.")
+                            except ValueError:
+                                print("Invalid input. Please enter a number for the day.")
+                        day_str = str(day)
+
+                        while True:
+                            try:
+                                hour_input = input("Enter the hour (0-23, e.g., 9 for 9 AM, 14 for 2 PM): ")
+                                hour = int(hour_input)
+                                if 0 <= hour <= 23:
+                                    break
+                                else:
+                                    print("Invalid hour. Please enter a number between 0 and 23.")
+                            except ValueError:
+                                print("Invalid input. Please enter a number for the hour.")
+                        hour_str = str(hour)
+
+                        current_event = all_events.get(year_str, {}).get(month_key_str, {}).get(day_str, {}).get(hour_str, "No event scheduled.")
+                        
+                        if action == 'delete':
+                            if year_str in all_events and \
+                               month_key_str in all_events.get(year_str, {}) and \
+                               day_str in all_events.get(year_str, {}).get(month_key_str, {}) and \
+                               hour_str in all_events.get(year_str, {}).get(month_key_str, {}).get(day_str, {}):
+                                
+                                del all_events[year_str][month_key_str][day_str][hour_str]
+                                print("Event deleted.")
+                                
+                                if not all_events[year_str][month_key_str][day_str]:
+                                    del all_events[year_str][month_key_str][day_str]
+                                if not all_events[year_str][month_key_str]:
+                                    del all_events[year_str][month_key_str]
+                                if not all_events[year_str]:
+                                    del all_events[year_str]
+                                save_all_events(all_events)
+                            else:
+                                print(f"No event found for Day {day_str}, Hour {hour_str}:00 to delete.")
+                        elif action in ['add', 'edit']:
+                            if action == 'add':
+                                print(f"Current event for Day {day_str}, Hour {hour_str}:00: {current_event}")
+                                event_text = input(f"Enter event text for Day {day_str}, Hour {hour_str}:00: ")
+                                if event_text:
+                                    is_recurring = input("Is this a recurring event? (yes/no): ").lower() == 'yes'
+                                    if is_recurring:
+                                        while True:
+                                            try:
+                                                interval = int(input("Enter recurrence interval in days: "))
+                                                break
+                                            except ValueError:
+                                                print("Invalid input. Please enter a number for the interval.")
+                                        event_data = {"text": event_text, "recurring": True, "interval": interval}
+                                    else:
+                                        event_data = event_text
+                                    year_events = all_events.setdefault(year_str, {})
+                                    month_events = year_events.setdefault(month_key_str, {})
+                                    day_events = month_events.setdefault(day_str, {})
+                                    day_events[hour_str] = event_data
+                                    print("Event saved.")
+                                    save_all_events(all_events)
+                                else:
+                                    print("Event text cannot be empty. No event added.")
+                            elif action == 'edit':
+                                if current_event == "No event scheduled.":
+                                    print("No event scheduled to edit.")
+                                else:
+                                    print(f"Current event for Day {day_str}, Hour {hour_str}:00: {current_event}")
+                                    event_text = input(f"Enter new event text for Day {day_str}, Hour {hour_str}:00 (leave blank to keep current): ")
+                                    if event_text:
+                                        is_recurring = input("Is this a recurring event? (yes/no): ").lower() == 'yes'
+                                        if is_recurring:
+                                            while True:
+                                                try:
+                                                    interval = int(input("Enter recurrence interval in days: "))
+                                                    break
+                                                except ValueError:
+                                                    print("Invalid input. Please enter a number for the interval.")
+                                            event_data = {"text": event_text, "recurring": True, "interval": interval}
+                                        else:
+                                            event_data = event_text
+                                        year_events = all_events.setdefault(year_str, {})
+                                        month_events = year_events.setdefault(month_key_str, {})
+                                        day_events = month_events.setdefault(day_str, {})
+                                        day_events[hour_str] = event_data
+                                        print("Event updated.")
+                                        save_all_events(all_events)
+                                    else:
+                                        print("No changes made to the event.")
+                        elif action == 'upload':
+                            if current_event == "No event scheduled.":
+                                print("No event scheduled at this time. Please add an event first.")
+                            else:
+                                file_metadata = upload_file_for_event(year_str, month_key_str, day_str, hour_str)
+                                if file_metadata:
+                                    if isinstance(current_event, dict):
+                                        current_event["file"] = file_metadata
+                                    else:
+                                        current_event = {"text": current_event, "file": file_metadata}
+                                    all_events.setdefault(year_str, {}).setdefault(month_key_str, {}).setdefault(day_str, {})[hour_str] = current_event
+                                    print("File metadata added to the event.")
+                                    save_all_events(all_events)
+                        else:
+                            print("Invalid action. Please type 'add', 'edit', 'view', 'delete', 'upload', or 'done'.")
+    except KeyboardInterrupt:
+        print("\nExiting calendar program.")
+        break
+>>>>>>> f9816061d1d9ed70667fb672a1fe73f7fe51c04f
     except Exception as e:
         print(f"Error starting calendar: {e}")
         import traceback
