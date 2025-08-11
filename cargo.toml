@@ -1,0 +1,12 @@
+[package]
+name = "calendar_rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# For user input, std::io is used.
+# For path manipulation, std::path is used.
+# For file system operations, std::fs is used.
