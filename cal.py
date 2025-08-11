@@ -3,7 +3,6 @@ import locale
 import json
 import os
 from datetime import datetime, timedelta
-<<<<<<< HEAD
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 import shutil
@@ -23,38 +22,97 @@ class CalendarGUI:
         self.current_month = datetime.now().month
         self.events = load_all_events()
         
+        # Theme system
+        self.current_theme = "light"  # Default theme
+        self.themes = {
+            "light": {
+                "bg": "#ffffff",
+                "fg": "#000000",
+                "select_bg": "#0078d4",
+                "select_fg": "#ffffff",
+                "button_bg": "#f0f0f0",
+                "button_fg": "#000000",
+                "button_active_bg": "#e1e1e1",
+                "entry_bg": "#ffffff",
+                "entry_fg": "#000000",
+                "header_bg": "#e8e8e8",
+                "today_bg": "#87ceeb",
+                "event_bg": "#fffacd",
+                "frame_bg": "#f5f5f5",
+                "text_bg": "#ffffff",
+                "scrollbar_bg": "#f0f0f0"
+            },
+            "dark": {
+                "bg": "#2b2b2b",
+                "fg": "#ffffff",
+                "select_bg": "#0078d4",
+                "select_fg": "#ffffff",
+                "button_bg": "#404040",
+                "button_fg": "#ffffff",
+                "button_active_bg": "#505050",
+                "entry_bg": "#404040",
+                "entry_fg": "#ffffff",
+                "header_bg": "#353535",
+                "today_bg": "#4682b4",
+                "event_bg": "#8b8000",
+                "frame_bg": "#353535",
+                "text_bg": "#404040",
+                "scrollbar_bg": "#505050"
+            }
+        }
+        
         self.setup_ui()
+        self.apply_theme()
         self.display_calendar()
     
     def setup_ui(self):
         """Setup the user interface"""
         # Top frame for navigation
-        nav_frame = tk.Frame(self.root)
-        nav_frame.pack(pady=10)
+        self.nav_frame = tk.Frame(self.root)
+        self.nav_frame.pack(pady=10)
         
         # Navigation buttons
-        tk.Button(nav_frame, text="<< Previous", command=self.prev_month).pack(side=tk.LEFT, padx=5)
+        self.prev_btn = tk.Button(self.nav_frame, text="<< Previous", command=self.prev_month)
+        self.prev_btn.pack(side=tk.LEFT, padx=5)
         
-        self.month_year_label = tk.Label(nav_frame, font=("Arial", 16, "bold"))
+        self.month_year_label = tk.Label(self.nav_frame, font=("Arial", 16, "bold"))
         self.month_year_label.pack(side=tk.LEFT, padx=20)
         
-        tk.Button(nav_frame, text="Next >>", command=self.next_month).pack(side=tk.LEFT, padx=5)
-        tk.Button(nav_frame, text="Today", command=self.go_to_today).pack(side=tk.LEFT, padx=5)
+        self.next_btn = tk.Button(self.nav_frame, text="Next >>", command=self.next_month)
+        self.next_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.today_btn = tk.Button(self.nav_frame, text="Today", command=self.go_to_today)
+        self.today_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Theme toggle button
+        self.theme_btn = tk.Button(self.nav_frame, text="🌙 Dark", command=self.toggle_theme)
+        self.theme_btn.pack(side=tk.LEFT, padx=5)
         
         # Calendar frame
         self.calendar_frame = tk.Frame(self.root)
         self.calendar_frame.pack(expand=True, fill=tk.BOTH, padx=20, pady=10)
         
         # Bottom frame for actions
-        action_frame = tk.Frame(self.root)
-        action_frame.pack(pady=10)
+        self.action_frame = tk.Frame(self.root)
+        self.action_frame.pack(pady=10)
         
-        tk.Button(action_frame, text="Add Event", command=self.add_event).pack(side=tk.LEFT, padx=5)
-        tk.Button(action_frame, text="View Events", command=self.view_events).pack(side=tk.LEFT, padx=5)
-        tk.Button(action_frame, text="Delete Event", command=self.delete_event).pack(side=tk.LEFT, padx=5)
-        tk.Button(action_frame, text="Upload File", command=self.upload_file).pack(side=tk.LEFT, padx=5)
-        tk.Button(action_frame, text="Edit Event", command=self.edit_event).pack(side=tk.LEFT, padx=5)
-        tk.Button(action_frame, text="Settings", command=self.show_settings).pack(side=tk.LEFT, padx=5)
+        self.add_btn = tk.Button(self.action_frame, text="Add Event", command=self.add_event)
+        self.add_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.view_btn = tk.Button(self.action_frame, text="View Events", command=self.view_events)
+        self.view_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.delete_btn = tk.Button(self.action_frame, text="Delete Event", command=self.delete_event)
+        self.delete_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.upload_btn = tk.Button(self.action_frame, text="Upload File", command=self.upload_file)
+        self.upload_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.edit_btn = tk.Button(self.action_frame, text="Edit Event", command=self.edit_event)
+        self.edit_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.settings_btn = tk.Button(self.action_frame, text="Settings", command=self.show_settings)
+        self.settings_btn.pack(side=tk.LEFT, padx=5)
     
     def display_calendar(self):
         """Display the calendar for current month"""
@@ -68,44 +126,154 @@ class CalendarGUI:
         
         # Days of week header
         days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        self.day_headers = []
         for i, day in enumerate(days):
             label = tk.Label(self.calendar_frame, text=day, font=("Arial", 10, "bold"), 
-                           bg="lightgray", relief=tk.RAISED)
+                           bg=self.themes[self.current_theme]["header_bg"], 
+                           fg=self.themes[self.current_theme]["fg"],
+                           relief=tk.RAISED)
             label.grid(row=0, column=i, sticky="nsew", padx=1, pady=1)
+            self.day_headers.append(label)
         
         # Get calendar data
         cal = calendar.monthcalendar(self.current_year, self.current_month)
         
         # Display calendar days
+        self.day_buttons = []
         for week_num, week in enumerate(cal, 1):
+            week_buttons = []
             for day_num, day in enumerate(week):
                 if day == 0:
                     # Empty cell for days not in current month
-                    label = tk.Label(self.calendar_frame, text="", bg="white")
+                    label = tk.Label(self.calendar_frame, text="", 
+                                   bg=self.themes[self.current_theme]["bg"])
                     label.grid(row=week_num, column=day_num, sticky="nsew", padx=1, pady=1)
+                    week_buttons.append(label)
                 else:
                     # Check if this day has events
                     has_events = self.has_events_on_day(day)
-                    bg_color = "lightyellow" if has_events else "white"
                     
-                    # Create day button
-                    btn = tk.Button(self.calendar_frame, text=str(day), 
-                                  bg=bg_color, relief=tk.RAISED,
-                                  command=lambda d=day: self.day_clicked(d))
-                    btn.grid(row=week_num, column=day_num, sticky="nsew", padx=1, pady=1)
-                    
-                    # Highlight today
+                    # Determine background color
                     today = datetime.now()
                     if (self.current_year == today.year and 
                         self.current_month == today.month and 
                         day == today.day):
-                        btn.config(bg="lightblue")
+                        bg_color = self.themes[self.current_theme]["today_bg"]
+                    elif has_events:
+                        bg_color = self.themes[self.current_theme]["event_bg"]
+                    else:
+                        bg_color = self.themes[self.current_theme]["button_bg"]
+                    
+                    # Create day button
+                    btn = tk.Button(self.calendar_frame, text=str(day), 
+                                  bg=bg_color, 
+                                  fg=self.themes[self.current_theme]["button_fg"],
+                                  activebackground=self.themes[self.current_theme]["button_active_bg"],
+                                  relief=tk.RAISED,
+                                  command=lambda d=day: self.day_clicked(d))
+                    btn.grid(row=week_num, column=day_num, sticky="nsew", padx=1, pady=1)
+                    week_buttons.append(btn)
+            self.day_buttons.append(week_buttons)
         
         # Configure grid weights for responsive design
         for i in range(7):
             self.calendar_frame.columnconfigure(i, weight=1)
         for i in range(len(cal) + 1):
             self.calendar_frame.rowconfigure(i, weight=1)
+    
+    def toggle_theme(self):
+        """Toggle between light and dark themes"""
+        if self.current_theme == "light":
+            self.current_theme = "dark"
+            self.theme_btn.config(text="☀️ Light")
+        else:
+            self.current_theme = "light"
+            self.theme_btn.config(text="🌙 Dark")
+        
+        self.apply_theme()
+        self.display_calendar()
+    
+    def apply_theme(self):
+        """Apply the current theme to all UI elements"""
+        theme = self.themes[self.current_theme]
+        
+        # Apply to root window
+        self.root.config(bg=theme["bg"])
+        
+        # Apply to frames
+        self.nav_frame.config(bg=theme["frame_bg"])
+        self.calendar_frame.config(bg=theme["bg"])
+        self.action_frame.config(bg=theme["frame_bg"])
+        
+        # Apply to navigation elements
+        self.prev_btn.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                           activebackground=theme["button_active_bg"])
+        self.next_btn.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                           activebackground=theme["button_active_bg"])
+        self.today_btn.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                            activebackground=theme["button_active_bg"])
+        self.theme_btn.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                            activebackground=theme["button_active_bg"])
+        
+        # Apply to month/year label
+        self.month_year_label.config(bg=theme["frame_bg"], fg=theme["fg"])
+        
+        # Apply to action buttons
+        self.add_btn.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                          activebackground=theme["button_active_bg"])
+        self.view_btn.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                           activebackground=theme["button_active_bg"])
+        self.delete_btn.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                             activebackground=theme["button_active_bg"])
+        self.upload_btn.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                             activebackground=theme["button_active_bg"])
+        self.edit_btn.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                           activebackground=theme["button_active_bg"])
+        self.settings_btn.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                                activebackground=theme["button_active_bg"])
+    
+    def apply_theme_to_window(self, window):
+        """Apply current theme to a specific window"""
+        theme = self.themes[self.current_theme]
+        window.config(bg=theme["bg"])
+        
+        # Apply theme to all child widgets recursively
+        def apply_to_children(widget):
+            try:
+                widget_class = widget.winfo_class()
+                if widget_class == "Frame" or widget_class == "Toplevel":
+                    widget.config(bg=theme["bg"])
+                elif widget_class == "Label":
+                    widget.config(bg=theme["bg"], fg=theme["fg"])
+                elif widget_class == "Button":
+                    widget.config(bg=theme["button_bg"], fg=theme["button_fg"], 
+                                activebackground=theme["button_active_bg"])
+                elif widget_class == "Text":
+                    widget.config(bg=theme["text_bg"], fg=theme["fg"], 
+                                insertbackground=theme["fg"])
+                elif widget_class == "Entry":
+                    widget.config(bg=theme["entry_bg"], fg=theme["entry_fg"], 
+                                insertbackground=theme["fg"])
+                elif widget_class == "Listbox":
+                    widget.config(bg=theme["text_bg"], fg=theme["fg"])
+                elif widget_class == "Scrollbar":
+                    widget.config(bg=theme["scrollbar_bg"])
+                elif widget_class == "LabelFrame":
+                    widget.config(bg=theme["bg"], fg=theme["fg"])
+                elif widget_class == "Radiobutton":
+                    widget.config(bg=theme["bg"], fg=theme["fg"], 
+                                selectcolor=theme["button_bg"])
+                elif widget_class == "Checkbutton":
+                    widget.config(bg=theme["bg"], fg=theme["fg"], 
+                                selectcolor=theme["button_bg"])
+            except:
+                pass  # Skip widgets that don't support these options
+            
+            # Recursively apply to children
+            for child in widget.winfo_children():
+                apply_to_children(child)
+        
+        apply_to_children(window)
     
     def has_events_on_day(self, day):
         """Check if a specific day has events"""
@@ -118,29 +286,345 @@ class CalendarGUI:
                 day_str in self.events[year_str][month_str])
     
     def day_clicked(self, day):
-        """Handle day button click"""
+        """Handle day button click - show detailed day view"""
         year_str = str(self.current_year)
         month_str = str(self.current_month)
         day_str = str(day)
         
-        # Show events for this day
+        # Create detailed day view window
+        day_window = tk.Toplevel(self.root)
+        day_window.title(f"{calendar.month_name[self.current_month]} {day}, {self.current_year}")
+        day_window.geometry("600x700")
+        
+        # Main frame with scrollbar
+        main_frame = tk.Frame(day_window)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Create canvas and scrollbar for scrolling
+        canvas = tk.Canvas(main_frame)
+        scrollbar = tk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Title
+        title_label = tk.Label(scrollable_frame, 
+                             text=f"Schedule for {calendar.month_name[self.current_month]} {day}, {self.current_year}",
+                             font=("Arial", 14, "bold"))
+        title_label.pack(pady=(0, 10))
+        
+        # Get existing events for this day
         day_events = self.events.get(year_str, {}).get(month_str, {}).get(day_str, {})
         
-        if day_events:
-            events_text = f"Events for {calendar.month_name[self.current_month]} {day}, {self.current_year}:\n\n"
-            for hour, event in sorted(day_events.items(), key=lambda x: int(x[0])):
+        # Create hour slots (24 hours)
+        for hour in range(24):
+            hour_str = str(hour)
+            hour_frame = tk.Frame(scrollable_frame, relief=tk.RIDGE, bd=1)
+            hour_frame.pack(fill=tk.X, pady=2)
+            
+            # Hour label
+            time_12hr = datetime.strptime(f"{hour}:00", "%H:%M").strftime("%I:%M %p")
+            hour_label = tk.Label(hour_frame, text=f"{hour:02d}:00 ({time_12hr})", 
+                                font=("Arial", 10, "bold"), width=12, anchor="w")
+            hour_label.pack(side=tk.LEFT, padx=5, pady=5)
+            
+            # Event content frame
+            content_frame = tk.Frame(hour_frame)
+            content_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+            
+            # Check if there's an event at this hour
+            if hour_str in day_events:
+                event = day_events[hour_str]
+                
+                # Event info frame
+                event_info_frame = tk.Frame(content_frame)
+                event_info_frame.pack(fill=tk.X, pady=2)
+                
+                # Display event text
                 if isinstance(event, dict):
                     event_text = event.get('text', str(event))
+                    event_label = tk.Label(event_info_frame, text=event_text, 
+                                         font=("Arial", 10), anchor="w", 
+                                         bg=self.themes[self.current_theme]["event_bg"])
+                    event_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                    
+                    # Show additional info
+                    info_parts = []
+                    if event.get('recurring'):
+                        info_parts.append(f"Recurring every {event.get('interval', 1)} days")
+                    if event.get('file'):
+                        info_parts.append(f"File: {event['file']['file_name']}")
+                    
+                    if info_parts:
+                        info_label = tk.Label(event_info_frame, text=" | ".join(info_parts), 
+                                            font=("Arial", 8), fg="gray")
+                        info_label.pack(side=tk.LEFT, padx=(5, 0))
                 else:
-                    event_text = str(event)
-                events_text += f"{hour}:00 - {event_text}\n"
-            messagebox.showinfo("Day Events", events_text)
+                    event_label = tk.Label(event_info_frame, text=str(event), 
+                                         font=("Arial", 10), anchor="w",
+                                         bg=self.themes[self.current_theme]["event_bg"])
+                    event_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                
+                # Action buttons for existing event
+                button_frame = tk.Frame(content_frame)
+                button_frame.pack(fill=tk.X, pady=2)
+                
+                edit_btn = tk.Button(button_frame, text="Edit", 
+                                   command=lambda h=hour: self.edit_event_inline(day_window, year_str, month_str, day_str, str(h)),
+                                   bg=self.themes[self.current_theme]["button_bg"],
+                                   fg=self.themes[self.current_theme]["button_fg"])
+                edit_btn.pack(side=tk.LEFT, padx=2)
+                
+                delete_btn = tk.Button(button_frame, text="Delete", 
+                                     command=lambda h=hour: self.delete_event_inline(day_window, year_str, month_str, day_str, str(h)),
+                                     bg=self.themes[self.current_theme]["button_bg"],
+                                     fg=self.themes[self.current_theme]["button_fg"])
+                delete_btn.pack(side=tk.LEFT, padx=2)
+                
+                upload_btn = tk.Button(button_frame, text="Upload File", 
+                                     command=lambda h=hour: self.upload_file_inline(day_window, year_str, month_str, day_str, str(h)),
+                                     bg=self.themes[self.current_theme]["button_bg"],
+                                     fg=self.themes[self.current_theme]["button_fg"])
+                upload_btn.pack(side=tk.LEFT, padx=2)
+                
+                # Show delete file button if file exists
+                if isinstance(event, dict) and event.get('file'):
+                    delete_file_btn = tk.Button(button_frame, text="Delete File", 
+                                               command=lambda h=hour: self.delete_file_inline(day_window, year_str, month_str, day_str, str(h)),
+                                               bg=self.themes[self.current_theme]["button_bg"],
+                                               fg=self.themes[self.current_theme]["button_fg"])
+                    delete_file_btn.pack(side=tk.LEFT, padx=2)
+                
+            else:
+                # No event - show add button
+                no_event_label = tk.Label(content_frame, text="No event scheduled", 
+                                        font=("Arial", 10), fg="gray", anchor="w")
+                no_event_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                
+                add_btn = tk.Button(content_frame, text="Add Event", 
+                                  command=lambda h=hour: self.add_event_inline(day_window, year_str, month_str, day_str, str(h)),
+                                  bg=self.themes[self.current_theme]["button_bg"],
+                                  fg=self.themes[self.current_theme]["button_fg"])
+                add_btn.pack(side=tk.RIGHT, padx=5)
+        
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Apply theme to the window
+        self.apply_theme_to_window(day_window)
+        
+        # Bind mousewheel to canvas
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    
+    def add_event_inline(self, parent_window, year_str, month_str, day_str, hour_str):
+        """Add event inline from day view"""
+        event_text = simpledialog.askstring("Add Event", 
+                                           f"Enter event description for {hour_str}:00:")
+        if not event_text:
+            return
+        
+        # Ask if recurring
+        is_recurring = messagebox.askyesno("Recurring Event", "Is this a recurring event?")
+        
+        if is_recurring:
+            interval = simpledialog.askinteger("Recurring Event", "Enter recurrence interval in days:")
+            if interval is None or interval <= 0:
+                return
+            event_data = {"text": event_text, "recurring": True, "interval": interval}
         else:
-            result = messagebox.askyesno("No Events", 
-                                       f"No events for {calendar.month_name[self.current_month]} {day}. "
-                                       "Would you like to add an event?")
-            if result:
-                self.add_event_for_day(day)
+            event_data = event_text
+        
+        # Save event
+        self.events.setdefault(year_str, {}).setdefault(month_str, {}).setdefault(day_str, {})[hour_str] = event_data
+        save_all_events(self.events)
+        self.display_calendar()
+        
+        # Refresh the day view
+        parent_window.destroy()
+        day = int(day_str)
+        self.day_clicked(day)
+        
+        messagebox.showinfo("Success", "Event added successfully!")
+    
+    def edit_event_inline(self, parent_window, year_str, month_str, day_str, hour_str):
+        """Edit event inline from day view"""
+        current_event = self.events.get(year_str, {}).get(month_str, {}).get(day_str, {}).get(hour_str)
+        if not current_event:
+            messagebox.showerror("Error", "No event found to edit.")
+            return
+        
+        # Get current event text
+        if isinstance(current_event, dict):
+            current_text = current_event.get('text', str(current_event))
+        else:
+            current_text = str(current_event)
+        
+        # Ask for new event text
+        event_text = simpledialog.askstring("Edit Event", 
+                                           f"Current: {current_text}\nEnter new event description:", 
+                                           initialvalue=current_text)
+        if event_text is None:  # User cancelled
+            return
+        
+        if not event_text:
+            messagebox.showerror("Error", "Event text cannot be empty.")
+            return
+        
+        # Ask if recurring
+        is_recurring = messagebox.askyesno("Recurring Event", "Is this a recurring event?")
+        
+        if is_recurring:
+            interval = simpledialog.askinteger("Recurring Event", "Enter recurrence interval in days:")
+            if interval is None or interval <= 0:
+                return
+            event_data = {"text": event_text, "recurring": True, "interval": interval}
+            # Preserve file metadata if it exists
+            if isinstance(current_event, dict) and "file" in current_event:
+                event_data["file"] = current_event["file"]
+        else:
+            if isinstance(current_event, dict) and "file" in current_event:
+                event_data = {"text": event_text, "file": current_event["file"]}
+            else:
+                event_data = event_text
+        
+        # Save updated event
+        self.events.setdefault(year_str, {}).setdefault(month_str, {}).setdefault(day_str, {})[hour_str] = event_data
+        save_all_events(self.events)
+        self.display_calendar()
+        
+        # Refresh the day view
+        parent_window.destroy()
+        day = int(day_str)
+        self.day_clicked(day)
+        
+        messagebox.showinfo("Success", "Event updated successfully!")
+    
+    def delete_event_inline(self, parent_window, year_str, month_str, day_str, hour_str):
+        """Delete event inline from day view"""
+        current_event = self.events.get(year_str, {}).get(month_str, {}).get(day_str, {}).get(hour_str)
+        if not current_event:
+            messagebox.showerror("Error", "No event found to delete.")
+            return
+        
+        # Get event text for confirmation
+        if isinstance(current_event, dict):
+            event_text = current_event.get('text', str(current_event))
+        else:
+            event_text = str(current_event)
+        
+        confirm = messagebox.askyesno("Confirm Deletion", 
+                                    f"Delete event '{event_text}' at {hour_str}:00?")
+        if confirm:
+            del self.events[year_str][month_str][day_str][hour_str]
+            
+            # Clean up empty dictionaries
+            if not self.events[year_str][month_str][day_str]:
+                del self.events[year_str][month_str][day_str]
+            if not self.events[year_str][month_str]:
+                del self.events[year_str][month_str]
+            if not self.events[year_str]:
+                del self.events[year_str]
+            
+            save_all_events(self.events)
+            self.display_calendar()
+            
+            # Refresh the day view
+            parent_window.destroy()
+            day = int(day_str)
+            self.day_clicked(day)
+            
+            messagebox.showinfo("Success", "Event deleted successfully!")
+    
+    def upload_file_inline(self, parent_window, year_str, month_str, day_str, hour_str):
+        """Upload file inline from day view"""
+        current_event = self.events.get(year_str, {}).get(month_str, {}).get(day_str, {}).get(hour_str)
+        if not current_event:
+            messagebox.showerror("Error", "No event scheduled at this time. Please add an event first.")
+            return
+        
+        # File dialog to select file
+        file_path = filedialog.askopenfilename(title="Select file to upload")
+        if not file_path:
+            return
+        
+        file_name = os.path.basename(file_path)
+        try:
+            # Ensure the uploads directory exists
+            uploads_dir = "uploads"
+            os.makedirs(uploads_dir, exist_ok=True)
+            
+            # Copy the file to the uploads directory
+            destination_path = os.path.join(uploads_dir, file_name)
+            shutil.copy2(file_path, destination_path)
+            
+            file_metadata = {"file_name": file_name, "file_path": destination_path}
+            
+            # Update event with file metadata
+            if isinstance(current_event, dict):
+                current_event["file"] = file_metadata
+            else:
+                current_event = {"text": current_event, "file": file_metadata}
+            
+            self.events.setdefault(year_str, {}).setdefault(month_str, {}).setdefault(day_str, {})[hour_str] = current_event
+            save_all_events(self.events)
+            self.display_calendar()
+            
+            # Refresh the day view
+            parent_window.destroy()
+            day = int(day_str)
+            self.day_clicked(day)
+            
+            messagebox.showinfo("Success", f"File '{file_name}' uploaded successfully!")
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Error uploading file: {e}")
+    
+    def delete_file_inline(self, parent_window, year_str, month_str, day_str, hour_str):
+        """Delete file inline from day view"""
+        current_event = self.events.get(year_str, {}).get(month_str, {}).get(day_str, {}).get(hour_str)
+        if not isinstance(current_event, dict) or "file" not in current_event:
+            messagebox.showerror("Error", "No file found to delete.")
+            return
+        
+        file_name = current_event["file"]["file_name"]
+        confirm = messagebox.askyesno("Confirm File Deletion", 
+                                    f"Delete file '{file_name}' from this event?")
+        if confirm:
+            try:
+                # Remove file from filesystem
+                file_path = current_event["file"]["file_path"]
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                
+                # Remove file metadata from event
+                del current_event["file"]
+                
+                # If event only had file metadata, convert back to simple text
+                if len(current_event) == 1 and "text" in current_event:
+                    current_event = current_event["text"]
+                
+                self.events[year_str][month_str][day_str][hour_str] = current_event
+                save_all_events(self.events)
+                self.display_calendar()
+                
+                # Refresh the day view
+                parent_window.destroy()
+                day = int(day_str)
+                self.day_clicked(day)
+                
+                messagebox.showinfo("Success", f"File '{file_name}' deleted successfully!")
+            
+            except Exception as e:
+                messagebox.showerror("Error", f"Error deleting file: {e}")
     
     def prev_month(self):
         """Go to previous month"""
@@ -257,6 +741,9 @@ class CalendarGUI:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         text_widget.config(yscrollcommand=scrollbar.set)
         scrollbar.config(command=text_widget.yview)
+        
+        # Apply theme to the window
+        self.apply_theme_to_window(event_window)
     
     def delete_event(self):
         """Delete an event"""
@@ -449,6 +936,24 @@ class CalendarGUI:
         settings_window.title("Settings")
         settings_window.geometry("400x500")
         
+        # Theme settings
+        theme_frame = tk.LabelFrame(settings_window, text="Theme Settings", padx=10, pady=10)
+        theme_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        tk.Label(theme_frame, text="Select theme:").pack(anchor=tk.W)
+        
+        self.selected_theme = tk.StringVar(value=self.current_theme)
+        
+        light_radio = tk.Radiobutton(theme_frame, text="☀️ Light Theme", 
+                                   variable=self.selected_theme, value="light",
+                                   command=self.update_theme_from_settings)
+        light_radio.pack(anchor=tk.W)
+        
+        dark_radio = tk.Radiobutton(theme_frame, text="🌙 Dark Theme", 
+                                  variable=self.selected_theme, value="dark",
+                                  command=self.update_theme_from_settings)
+        dark_radio.pack(anchor=tk.W)
+        
         # Language settings
         lang_frame = tk.LabelFrame(settings_window, text="Language Settings", padx=10, pady=10)
         lang_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -487,6 +992,23 @@ class CalendarGUI:
         
         # Apply settings button
         tk.Button(settings_window, text="Apply Language Settings", command=lambda: self.apply_language_settings(settings_window)).pack(pady=10)
+        
+        # Apply theme to the settings window
+        self.apply_theme_to_window(settings_window)
+    
+    def update_theme_from_settings(self):
+        """Update theme when changed from settings"""
+        new_theme = self.selected_theme.get()
+        if new_theme != self.current_theme:
+            self.current_theme = new_theme
+            # Update theme button text
+            if self.current_theme == "dark":
+                self.theme_btn.config(text="☀️ Light")
+            else:
+                self.theme_btn.config(text="🌙 Dark")
+            
+            self.apply_theme()
+            self.display_calendar()
     
     def go_to_specific_date(self):
         """Navigate to a specific month and year"""
@@ -774,20 +1296,6 @@ def run_gui_calendar():
     root = tk.Tk()
     app = CalendarGUI(root)
     root.mainloop()
-=======
-import threading
-import time
-
-# Default to current month and year
-now = datetime.now()
-yy = now.year
-mm = now.month
-
-EVENTS_FILE = "calendar_events.json"
-
-# Global variable for notification interval (in seconds)
-NOTIFICATION_INTERVAL = 60  # Default to 60 seconds
->>>>>>> f9816061d1d9ed70667fb672a1fe73f7fe51c04f
 
 # Function to load all events
 def load_all_events():
@@ -837,7 +1345,6 @@ def handle_recurring_events(events):
                 del events[year]
     return events
 
-<<<<<<< HEAD
 if __name__ == "__main__":
     try:
         print("Starting Calendar Application...")
@@ -882,324 +1389,6 @@ if __name__ == "__main__":
         print("GUI initialized successfully!")
         root.mainloop()
         
-=======
-# Function to notify upcoming events
-def notify_upcoming_events(events):
-    today = datetime.now()
-    for year, months in events.items():
-        for month, days in months.items():
-            for day, hours in days.items():
-                for hour, event in hours.items():
-                    event_time = datetime(int(year), int(month), int(day), int(hour))
-                    if today <= event_time <= today + timedelta(minutes=30):
-                        print(f"Upcoming Event: {event} at {event_time.strftime('%Y-%m-%d %H:%M')}")
-
-# Function to send push notifications
-def send_push_notification(event, event_time):
-    print(f"Notification: Upcoming Event '{event}' at {event_time.strftime('%Y-%m-%d %H:%M')}")
-
-# Function to edit notification duration with flexible intervals
-def edit_notification_duration():
-    global NOTIFICATION_INTERVAL
-    while True:
-        try:
-            print("\nSelect the unit for notification interval:")
-            print("1. Months")
-            print("2. Days")
-            print("3. Hours")
-            print("4. Seconds")
-            unit_choice = input("Enter your choice (1-4): ").strip()
-
-            if unit_choice == '1':
-                months = int(input("Enter the number of months: "))
-                NOTIFICATION_INTERVAL = months * 30 * 24 * 60 * 60  # Approximate to 30 days per month
-            elif unit_choice == '2':
-                days = int(input("Enter the number of days: "))
-                NOTIFICATION_INTERVAL = days * 24 * 60 * 60
-            elif unit_choice == '3':
-                hours = int(input("Enter the number of hours: "))
-                NOTIFICATION_INTERVAL = hours * 60 * 60
-            elif unit_choice == '4':
-                seconds = int(input("Enter the number of seconds (minimum 10 seconds): "))
-                if seconds < 10:
-                    print("Interval must be at least 10 seconds.")
-                    continue
-                NOTIFICATION_INTERVAL = seconds
-            else:
-                print("Invalid choice. Please select a valid option.")
-                continue
-
-            print(f"Notification interval updated to {NOTIFICATION_INTERVAL} seconds.")
-            break
-        except ValueError:
-            print("Invalid input. Please enter a valid number.")
-
-# Function to schedule notifications
-def schedule_notifications(events):
-    def notification_worker():
-        while True:
-            now = datetime.now()
-            for year, months in events.items():
-                for month, days in months.items():
-                    for day, hours in days.items():
-                        for hour, event in hours.items():
-                            event_time = datetime(int(year), int(month), int(day), int(hour))
-                            if now < event_time <= now + timedelta(minutes=30):
-                                if isinstance(event, dict):
-                                    event_text = event.get("text", "No event text")
-                                else:
-                                    event_text = event
-                                send_push_notification(event_text, event_time)
-            time.sleep(NOTIFICATION_INTERVAL)  # Use the updated interval
-
-    notification_thread = threading.Thread(target=notification_worker, daemon=True)
-    notification_thread.start()
-
-# Function to select month and year
-def select_month_and_year():
-    global yy, mm
-    while True:
-        try:
-            year_input = input("Enter year (or press Enter for current year): ")
-            month_input = input("Enter month (1-12, or press Enter for current month): ")
-            yy = int(year_input) if year_input else now.year
-            mm = int(month_input) if month_input else now.month
-            if 1 <= mm <= 12:
-                break
-            else:
-                print("Invalid month. Please enter a number between 1 and 12.")
-        except ValueError:
-            print("Invalid input. Please enter valid numbers for year and month.")
-
-# Function to handle file uploads
-def upload_file_for_event(year, month, day, hour):
-    file_path = input("Enter the path of the file to upload: ").strip()
-    if not os.path.exists(file_path):
-        print("Error: File does not exist.")
-        return None
-
-    file_name = os.path.basename(file_path)
-    try:
-        # Ensure the uploads directory exists
-        uploads_dir = "uploads"
-        os.makedirs(uploads_dir, exist_ok=True)
-
-        # Copy the file to the uploads directory
-        destination_path = os.path.join(uploads_dir, file_name)
-        with open(file_path, 'rb') as src, open(destination_path, 'wb') as dest:
-            dest.write(src.read())
-
-        print(f"File '{file_name}' uploaded successfully.")
-        return {"file_name": file_name, "file_path": destination_path}
-    except IOError as e:
-        print(f"Error uploading file: {e}")
-        return None
-
-# Load events and handle recurring events
-all_events = load_all_events()
-all_events = handle_recurring_events(all_events)
-save_all_events(all_events)
-
-# Start push notifications
-schedule_notifications(all_events)
-
-# Notify about upcoming events
-notify_upcoming_events(all_events)
-
-# Allow user to select month and year
-select_month_and_year()
-
-print(f"Calendar for {calendar.month_name[mm]} {yy}\n")
-
-# Create a list of languages for the menu
-language_options = list(windows_locales.keys())
-
-print("Please select a language for the calendar:")
-for i, lang_name in enumerate(language_options):
-    print(f"{i + 1}. {lang_name}")
-
-while True:
-    try:
-        choice = input(f"Enter a number (1-{len(language_options)}): ")
-        choice_index = int(choice) - 1
-        if 0 <= choice_index < len(language_options):
-            selected_lang_name = language_options[choice_index]
-            loc_name = windows_locales[selected_lang_name]
-            generic_loc_name = locales_to_try.get(selected_lang_name)
-            
-            print(f"\nDisplaying calendar for {selected_lang_name}:\n")
-            calendar_displayed_successfully = False
-            try:
-                locale.setlocale(locale.LC_ALL, loc_name)
-                print(f"--- {selected_lang_name} ({loc_name}) ---")
-                print(calendar.month(yy, mm))
-                calendar_displayed_successfully = True
-            except locale.Error as e:
-                print(f"Locale {loc_name} is not supported on this system: {e}")
-                print("Falling back to default locale.")
-                try:
-                    locale.setlocale(locale.LC_ALL, '')  # Default system locale
-                    print(calendar.month(yy, mm))
-                    calendar_displayed_successfully = True
-                
-                except locale.Error as fallback_error:
-                    print(f"Failed to set default locale: {fallback_error}")
-            except locale.Error as e:
-                print(f"Could not set Windows-specific locale for {selected_lang_name} ({loc_name}): {e}")
-                if generic_loc_name and generic_loc_name != loc_name:
-                    print(f"Trying generic locale: {generic_loc_name}")
-                    try:
-                        locale.setlocale(locale.LC_ALL, generic_loc_name)
-                        print(f"--- {selected_lang_name} ({generic_loc_name}) ---")
-                        print(calendar.month(yy, mm))
-                        calendar_displayed_successfully = True
-                    except locale.Error as e_generic:
-                        print(f"Could not set generic locale for {selected_lang_name} ({generic_loc_name}) either: {e_generic}")
-                        print(f"Skipping {selected_lang_name} as locale setup failed.")
-                else:
-                    print(f"No generic fallback locale defined or it's the same. Skipping {selected_lang_name}.")
-            
-            if calendar_displayed_successfully:
-                all_events = load_all_events()
-                year_str = str(yy)
-                month_key_str = str(mm)
-
-                while True: 
-                    action = input(f"For {calendar.month_name[mm]} {year_str}, manage events or type 'done'? (add/edit/view/delete/upload/done): ").lower()
-                    
-                    if action == 'done':
-                        break
-                    
-                    if action == 'view':
-                        month_events_data = all_events.get(year_str, {}).get(month_key_str, {})
-                        if not month_events_data:
-                            print(f"No events scheduled for {calendar.month_name[mm]} {year_str}.")
-                        else:
-                            print(f"\nEvents for {calendar.month_name[mm]} {year_str}:")
-                            for day_key in sorted(month_events_data.keys(), key=int):
-                                day_data = month_events_data[day_key]
-                                print(f"  Day {day_key}:")
-                                for hour_key in sorted(day_data.keys(), key=int):
-                                    event_detail = day_data[hour_key]
-                                    print(f"    Hour {hour_key}:00 - {event_detail}")
-                            print("") 
-                        continue
-
-                    if action in ['add', 'edit', 'delete', 'upload']:
-                        max_day = calendar.monthrange(yy, mm)[1]
-                        while True:
-                            try:
-                                day_input = input(f"Enter the day of the month (1-{max_day}): ")
-                                day = int(day_input)
-                                if 1 <= day <= max_day:
-                                    break
-                                else:
-                                    print(f"Invalid day. Please enter a number between 1 and {max_day}.")
-                            except ValueError:
-                                print("Invalid input. Please enter a number for the day.")
-                        day_str = str(day)
-
-                        while True:
-                            try:
-                                hour_input = input("Enter the hour (0-23, e.g., 9 for 9 AM, 14 for 2 PM): ")
-                                hour = int(hour_input)
-                                if 0 <= hour <= 23:
-                                    break
-                                else:
-                                    print("Invalid hour. Please enter a number between 0 and 23.")
-                            except ValueError:
-                                print("Invalid input. Please enter a number for the hour.")
-                        hour_str = str(hour)
-
-                        current_event = all_events.get(year_str, {}).get(month_key_str, {}).get(day_str, {}).get(hour_str, "No event scheduled.")
-                        
-                        if action == 'delete':
-                            if year_str in all_events and \
-                               month_key_str in all_events.get(year_str, {}) and \
-                               day_str in all_events.get(year_str, {}).get(month_key_str, {}) and \
-                               hour_str in all_events.get(year_str, {}).get(month_key_str, {}).get(day_str, {}):
-                                
-                                del all_events[year_str][month_key_str][day_str][hour_str]
-                                print("Event deleted.")
-                                
-                                if not all_events[year_str][month_key_str][day_str]:
-                                    del all_events[year_str][month_key_str][day_str]
-                                if not all_events[year_str][month_key_str]:
-                                    del all_events[year_str][month_key_str]
-                                if not all_events[year_str]:
-                                    del all_events[year_str]
-                                save_all_events(all_events)
-                            else:
-                                print(f"No event found for Day {day_str}, Hour {hour_str}:00 to delete.")
-                        elif action in ['add', 'edit']:
-                            if action == 'add':
-                                print(f"Current event for Day {day_str}, Hour {hour_str}:00: {current_event}")
-                                event_text = input(f"Enter event text for Day {day_str}, Hour {hour_str}:00: ")
-                                if event_text:
-                                    is_recurring = input("Is this a recurring event? (yes/no): ").lower() == 'yes'
-                                    if is_recurring:
-                                        while True:
-                                            try:
-                                                interval = int(input("Enter recurrence interval in days: "))
-                                                break
-                                            except ValueError:
-                                                print("Invalid input. Please enter a number for the interval.")
-                                        event_data = {"text": event_text, "recurring": True, "interval": interval}
-                                    else:
-                                        event_data = event_text
-                                    year_events = all_events.setdefault(year_str, {})
-                                    month_events = year_events.setdefault(month_key_str, {})
-                                    day_events = month_events.setdefault(day_str, {})
-                                    day_events[hour_str] = event_data
-                                    print("Event saved.")
-                                    save_all_events(all_events)
-                                else:
-                                    print("Event text cannot be empty. No event added.")
-                            elif action == 'edit':
-                                if current_event == "No event scheduled.":
-                                    print("No event scheduled to edit.")
-                                else:
-                                    print(f"Current event for Day {day_str}, Hour {hour_str}:00: {current_event}")
-                                    event_text = input(f"Enter new event text for Day {day_str}, Hour {hour_str}:00 (leave blank to keep current): ")
-                                    if event_text:
-                                        is_recurring = input("Is this a recurring event? (yes/no): ").lower() == 'yes'
-                                        if is_recurring:
-                                            while True:
-                                                try:
-                                                    interval = int(input("Enter recurrence interval in days: "))
-                                                    break
-                                                except ValueError:
-                                                    print("Invalid input. Please enter a number for the interval.")
-                                            event_data = {"text": event_text, "recurring": True, "interval": interval}
-                                        else:
-                                            event_data = event_text
-                                        year_events = all_events.setdefault(year_str, {})
-                                        month_events = year_events.setdefault(month_key_str, {})
-                                        day_events = month_events.setdefault(day_str, {})
-                                        day_events[hour_str] = event_data
-                                        print("Event updated.")
-                                        save_all_events(all_events)
-                                    else:
-                                        print("No changes made to the event.")
-                        elif action == 'upload':
-                            if current_event == "No event scheduled.":
-                                print("No event scheduled at this time. Please add an event first.")
-                            else:
-                                file_metadata = upload_file_for_event(year_str, month_key_str, day_str, hour_str)
-                                if file_metadata:
-                                    if isinstance(current_event, dict):
-                                        current_event["file"] = file_metadata
-                                    else:
-                                        current_event = {"text": current_event, "file": file_metadata}
-                                    all_events.setdefault(year_str, {}).setdefault(month_key_str, {}).setdefault(day_str, {})[hour_str] = current_event
-                                    print("File metadata added to the event.")
-                                    save_all_events(all_events)
-                        else:
-                            print("Invalid action. Please type 'add', 'edit', 'view', 'delete', 'upload', or 'done'.")
-    except KeyboardInterrupt:
-        print("\nExiting calendar program.")
-        break
->>>>>>> f9816061d1d9ed70667fb672a1fe73f7fe51c04f
     except Exception as e:
         print(f"Error starting calendar: {e}")
         import traceback
